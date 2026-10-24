@@ -1,0 +1,52 @@
+
+---
+- name: Deploy FastAPI application using Docker Compose
+  hosts: fastapi_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Install required packages on Ubuntu servers
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: /opt/fastapi-app
+        state: directory
+        mode: "0755"
+
+    - name: Copy application source code
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../app/"
+        dest: /opt/fastapi-app/
+        mode: preserve
+
+    - name: Copy Dockerfile
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../Dockerfile"
+        dest: /opt/fastapi-app/Dockerfile
+        mode: "0644"
+
+    - name: Copy Docker Compose configuration
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose.yaml"
+        dest: /opt/fastapi-app/compose.yaml
+        mode: "0644"
+
+    - name: Deploy application with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: /opt/fastapi-app
+        state: present
+        build: always
